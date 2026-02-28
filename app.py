@@ -12,9 +12,7 @@ import os
 import glob
 from dotenv import load_dotenv
 
-# ─────────────────────────────────────────────────────────────
 # PAGE CONFIGURATION
-# ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="DataWhisper — AI Data Analyst",
     page_icon="📊",
@@ -29,7 +27,7 @@ if not api_key:
     st.error("API Key not found! Please check your .env file.")
     st.stop()
 
-# Safe check for Kaggle API
+# check for Kaggle API
 try:
     from kaggle.api.kaggle_api_extended import KaggleApi
     kaggle_api = KaggleApi()
@@ -47,10 +45,7 @@ except ImportError:
     FPDF_AVAILABLE = False
     print("FPDF not installed. PDF export disabled.")
 
-
-# ─────────────────────────────────────────────────────────────
 # SESSION STATE & NAVIGATION LOGIC
-# ─────────────────────────────────────────────────────────────
 for key, default in {
     "view": "home",
     "theme": "light",
@@ -82,9 +77,7 @@ def toggle_theme():
     st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
 
 
-# ─────────────────────────────────────────────────────────────
-# DYNAMIC THEME VARIABLES  ← FIXED for dark mode readability
-# ─────────────────────────────────────────────────────────────
+# DYNAMIC THEME VARIABLES 
 is_dark = st.session_state.theme == "dark"
 
 bg_color      = "#0e1117"  if is_dark else "#f4f6f9"
@@ -343,9 +336,7 @@ label p {{ color: {text_color} !important; }}
 """, unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────────────────────
 # TOP NAVIGATION BAR
-# ─────────────────────────────────────────────────────────────
 st.markdown("<div class='top-nav-container'>", unsafe_allow_html=True)
 nav_col1, nav_col2, nav_col3 = st.columns([1, 8, 1])
 with nav_col1:
@@ -361,9 +352,7 @@ with nav_col3:
 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────────────────────
 # COLOR PALETTE & CHART THEME
-# ─────────────────────────────────────────────────────────────
 PALETTE = ["#4f6ef7","#00c4b4","#f5a623","#e74c3c","#9b59b6",
            "#1abc9c","#e67e22","#3498db","#e91e63","#00bcd4"]
 
@@ -383,9 +372,7 @@ PTYPE_ICONS = {
 }
 
 
-# ─────────────────────────────────────────────────────────────
 # DATASET PROFILER
-# ─────────────────────────────────────────────────────────────
 def profile_dataset(df: pd.DataFrame) -> dict:
     numeric_cols  = df.select_dtypes(include=np.number).columns.tolist()
     category_cols = df.select_dtypes(include=["object","category"]).columns.tolist()
@@ -448,9 +435,9 @@ def profile_dataset(df: pd.DataFrame) -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────────
+
 # AI STREAMING GENERATOR FUNCTION
-# ─────────────────────────────────────────────────────────────
+
 def get_groq_stream(prompt_messages, api_key):
     client = Groq(api_key=api_key)
     stream = client.chat.completions.create(
@@ -465,9 +452,7 @@ def get_groq_stream(prompt_messages, api_key):
             yield chunk.choices[0].delta.content
 
 
-# ─────────────────────────────────────────────────────────────
 # AI: DESCRIBE DATASET
-# ─────────────────────────────────────────────────────────────
 def describe_dataset(df: pd.DataFrame, filename: str, api_key: str) -> str:
     try:
         client = Groq(api_key=api_key)
@@ -499,9 +484,8 @@ Be specific. Cite numbers. Do NOT be generic."""
         return f"Dataset **{filename}** loaded: {df.shape[0]:,} rows × {df.shape[1]} columns. I'll now identify the most interesting patterns to visualize."
 
 
-# ─────────────────────────────────────────────────────────────
 # AI: GENERATE INSIGHTS
-# ─────────────────────────────────────────────────────────────
+
 def generate_insights(df: pd.DataFrame, api_key: str) -> list:
     try:
         client = Groq(api_key=api_key)
@@ -549,9 +533,8 @@ Column names MUST exactly match. Return pure JSON only."""
     return []
 
 
-# ─────────────────────────────────────────────────────────────
 # CHART BUILDER
-# ─────────────────────────────────────────────────────────────
+
 def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
     ct  = ins.get("chart_type","bar")
     xc  = ins.get("x_col")
@@ -586,14 +569,28 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
     elif ct == "pie" and not yc and agg == "none":
         agg = "count"
 
+    # --- AGGREGATION BLOCK  ---
     if agg != "none" and xc:
-        if agg == "count":
-            grp = [xc]+([cc] if cc else [])
-            pf  = pf.groupby(grp, observed=True).size().reset_index(name="count"); yc="count"
-        elif yc and yc in pf.columns:
-            fn  = {"mean":"mean","sum":"sum","median":"median"}.get(agg,"mean")
-            grp = [xc]+([cc] if cc else [])
-            pf  = pf.groupby(grp, observed=True)[yc].agg(fn).reset_index()
+        grp = []
+        if xc: grp.append(xc)
+        if cc and cc != xc: grp.append(cc)
+        
+        try:
+            if agg == "count":
+                count_name = "record_count" if "count" in grp else "count"
+                pf  = pf.groupby(grp, observed=True).size().reset_index(name=count_name)
+                yc  = count_name
+            elif yc and yc in pf.columns:
+                fn  = {"mean":"mean","sum":"sum","median":"median"}.get(agg,"mean")
+                agg_res = pf.groupby(grp, observed=True)[yc].agg(fn)
+                
+                if yc in grp:
+                    agg_res.name = f"{yc}_{fn}"
+                    yc = agg_res.name
+                    
+                pf = agg_res.reset_index()
+        except Exception:
+            pass
 
     if sv and yc and yc in pf.columns:
         pf = pf.sort_values(yc, ascending=False)
@@ -605,13 +602,18 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
     if ct in ["line", "area"] and xc:
         pf = pf.sort_values(xc)
 
+    if ct in ["bar", "box", "violin"] and not cc and xc in pf.columns:
+        if pf[xc].nunique() <= 20:
+            cc = xc
+
     hov    = [c for c in pf.columns.tolist()[:8] if c not in [xc, yc, zc]]
     title  = ins.get("title","")
     fig    = None
     profile = profile_dataset(df)
 
     try:
-        if not xc and not yc:
+        # Let heatmaps proceed even if xc and yc are missing
+        if not xc and not yc and ct not in ["heatmap", "correlation"]:
             return None
 
         if ct == "scatter":
@@ -621,7 +623,7 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
                         and pd.api.types.is_numeric_dtype(pf.get(yc, pd.Series()))
                         and not cc)
             fig = px.scatter(pf, x=xc, y=yc, color=cc, size=sc, hover_data=hov,
-                             opacity=0.75, title=title)
+                             opacity=0.75, title=title, color_discrete_sequence=PALETTE)
             if needs_tl:
                 try:
                     mask = pf[[xc, yc]].notna().all(axis=1)
@@ -642,56 +644,54 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
         elif ct == "scatter_3d":
             if not xc or not yc or not zc: return None
             fig = px.scatter_3d(pf, x=xc, y=yc, z=zc, color=cc, size=sc, hover_data=hov,
-                                opacity=0.75, title=title)
+                                opacity=0.75, title=title, color_discrete_sequence=PALETTE)
 
         elif ct == "bubble":
             if not xc or not yc: return None
             fig = px.scatter(pf, x=xc, y=yc, color=cc, size=sc, hover_data=hov,
-                             opacity=0.72, title=title)
+                             opacity=0.72, title=title, color_discrete_sequence=PALETTE)
 
         elif ct == "bar":
             fig = px.bar(pf, x=xc, y=yc, color=cc,
                          barmode="group" if cc else "relative",
-                         text_auto=".3s", title=title)
+                         text_auto=".3s", title=title, color_discrete_sequence=PALETTE)
             fig.update_traces(textposition="outside", textfont_size=10, marker_line_width=0)
 
         elif ct == "line":
-            fig = px.line(pf, x=xc, y=yc, color=cc, markers=True, title=title)
+            fig = px.line(pf, x=xc, y=yc, color=cc, markers=True, title=title, color_discrete_sequence=PALETTE)
             fig.update_traces(line_width=2.5)
 
         elif ct == "area":
-            fig = px.area(pf, x=xc, y=yc, color=cc, title=title)
+            fig = px.area(pf, x=xc, y=yc, color=cc, title=title, color_discrete_sequence=PALETTE)
 
         elif ct == "pie":
             if not xc: return None
-            fig = px.pie(pf, names=xc, values=yc, title=title, hole=0.3)
+            fig = px.pie(pf, names=xc, values=yc, title=title, hole=0.3, color_discrete_sequence=PALETTE)
             fig.update_traces(textposition='inside', textinfo='percent+label')
 
         elif ct == "histogram":
             if not xc: return None
             fig = px.histogram(pf, x=xc, color=cc,
                                nbins=min(50, max(10, int(pf.shape[0]**0.5))),
-                               opacity=0.82, barmode="overlay", title=title)
+                               opacity=0.82, barmode="overlay", title=title, color_discrete_sequence=PALETTE)
 
         elif ct == "box":
-            fig = px.box(pf, x=xc, y=yc, color=cc, points="outliers", notched=True, title=title)
+            fig = px.box(pf, x=xc, y=yc, color=cc, points="outliers", notched=True, title=title, color_discrete_sequence=PALETTE)
 
         elif ct == "violin":
-            fig = px.violin(pf, x=xc, y=yc, color=cc, box=True, points="outliers", title=title)
+            fig = px.violin(pf, x=xc, y=yc, color=cc, box=True, points="outliers", title=title, color_discrete_sequence=PALETTE)
 
         elif ct == "heatmap":
             num_cols = profile["numeric_cols"]
-            if xc in num_cols and yc in num_cols:
-                cols_h = [c for c in num_cols if df[c].nunique()>1][:16]
+            cols_h = [c for c in num_cols if df[c].nunique()>1][:16]
+            if len(cols_h) >= 2:
                 corr   = df[cols_h].corr().round(2)
                 fig    = go.Figure(go.Heatmap(
                     z=corr.values, x=corr.columns.tolist(), y=corr.index.tolist(),
-                    colorscale=[[0,"#e74c3c"],[0.5,card_bg],[1,"#4f6ef7"]], zmid=0,
-                    text=corr.values.round(2), texttemplate="%{text}",
-                    textfont=dict(size=10, color=text_color),
-                    hovertemplate="<b>%{x}</b> × <b>%{y}</b><br>r = %{z}<extra></extra>",
-                    colorbar=dict(title="r", thickness=12)))
+                    colorscale=[[0,"#e74c3c"],[0.5,card_bg],[1,"#4f6ef7"]], zmid=0))
                 fig.update_layout(title=title)
+            else:
+                return None
 
         if fig:
             fig.update_layout(template=plotly_template, **CHART_THEME)
@@ -706,9 +706,9 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
     return fig
 
 
-# ─────────────────────────────────────────────────────────────
-# OVERVIEW CHARTS (auto, no LLM)
-# ─────────────────────────────────────────────────────────────
+
+# OVERVIEW CHARTS 
+
 def render_overview_charts(df: pd.DataFrame, profile: dict):
     num_cols = profile["numeric_cols"]
     cat_cols = profile["category_cols"]
@@ -772,10 +772,8 @@ def render_overview_charts(df: pd.DataFrame, profile: dict):
                           yaxis_title="Missing Count", height=320)
         st.plotly_chart(fig, use_container_width=True)
 
-
-# ─────────────────────────────────────────────────────────────
 # PDF REPORT GENERATOR
-# ─────────────────────────────────────────────────────────────
+
 def create_pdf_report(df_name, profile, summary_text, insights, df):
     if not FPDF_AVAILABLE:
         return None
@@ -789,11 +787,13 @@ def create_pdf_report(df_name, profile, summary_text, insights, df):
     TEXT_BLACK = (50, 50, 50)
     BG_LIGHT = (240, 244, 250)
 
+    # Title
     pdf.set_font("Arial", 'B', 22)
     pdf.set_text_color(*PRIMARY_BLUE)
     pdf.cell(0, 15, txt="DataWhisper Analysis Report", ln=True, align='C')
     pdf.ln(5)
 
+    # Dataset Info Box
     pdf.set_fill_color(*BG_LIGHT)
     pdf.set_font("Arial", 'B', 12)
     pdf.set_text_color(*DARK_SLATE)
@@ -803,6 +803,7 @@ def create_pdf_report(df_name, profile, summary_text, insights, df):
     pdf.cell(0, 10, txt=f" Rows: {profile['shape'][0]:,} | Columns: {profile['shape'][1]}", ln=True, fill=True)
     pdf.ln(8)
 
+    # Executive Summary
     pdf.set_font("Arial", 'B', 14)
     pdf.set_text_color(*PRIMARY_BLUE)
     pdf.cell(0, 10, txt="Executive Summary", ln=True)
@@ -813,6 +814,7 @@ def create_pdf_report(df_name, profile, summary_text, insights, df):
     pdf.multi_cell(0, 6, txt=clean_summary)
     pdf.ln(10)
 
+    # Insights section
     pdf.set_font("Arial", 'B', 16)
     pdf.set_text_color(*PRIMARY_BLUE)
     pdf.cell(0, 10, txt="Key Insights & Phenomenons", ln=True)
@@ -820,17 +822,14 @@ def create_pdf_report(df_name, profile, summary_text, insights, df):
     pdf.ln(5)
 
     for i, ins in enumerate(insights):
+        clean_title = ins.get('title', '').encode('latin-1', 'ignore').decode('latin-1')
+
+        # 1. Title
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(*DARK_SLATE)
-        clean_title = ins.get('title', '').encode('latin-1', 'ignore').decode('latin-1')
         pdf.cell(0, 10, txt=f"{i+1}. {clean_title}", ln=True)
 
-        pdf.set_font("Arial", '', 10)
-        pdf.set_text_color(*TEXT_BLACK)
-        clean_desc = ins.get('description', '').encode('latin-1', 'ignore').decode('latin-1')
-        clean_desc = clean_desc.replace('**', '')
-        pdf.multi_cell(0, 6, txt=clean_desc)
-
+        # 2. Chart Rendering
         fig = build_chart(ins, df)
         if fig:
             fig.update_layout(
@@ -839,33 +838,84 @@ def create_pdf_report(df_name, profile, summary_text, insights, df):
                 plot_bgcolor="#f0f4fa",
                 font=dict(color="#1a2b4c"),
                 colorway=PALETTE,
-                margin=dict(l=20, r=20, t=40, b=20)
+                margin=dict(l=20, r=20, t=60, b=20),
+                showlegend=True,
+                title=dict(text=f"<b>{clean_title}</b>", font=dict(size=16, color="#1a2b4c"), x=0.5, xanchor="center")
             )
             fig.update_xaxes(gridcolor="rgba(26, 43, 76, 0.1)", title_font=dict(color="#1a2b4c"), tickfont=dict(color="#1a2b4c"))
             fig.update_yaxes(gridcolor="rgba(26, 43, 76, 0.1)", title_font=dict(color="#1a2b4c"), tickfont=dict(color="#1a2b4c"))
+            
+            # legends
+            for trace in fig.data:
+                try:
+                    trace.showlegend = True
+                    if not getattr(trace, 'name', None) or trace.name == "":
+                        trace.name = str(ins.get("y_col") or ins.get("x_col") or "Data")
+                except Exception:
+                    pass
+
             try:
                 import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                    fig.write_image(tmpfile.name, format="png", engine="kaleido", width=700, height=400)
-                    pdf.image(tmpfile.name, w=170)
-                    os.remove(tmpfile.name)
-            except ValueError:
-                pdf.set_font("Arial", 'I', 9)
-                pdf.set_text_color(200, 0, 0)
-                pdf.cell(0, 7, txt=f"[ Chart hidden. Install 'kaleido' via pip to embed images ]", ln=True)
-                pdf.set_text_color(*TEXT_BLACK)
+                # Safer temporary file handling for Windows
+                tmp_fd, tmp_path = tempfile.mkstemp(suffix=".png")
+                os.close(tmp_fd) 
+                
+                fig.write_image(tmp_path, format="png", engine="kaleido", width=700, height=400)
+                pdf.image(tmp_path, w=170)
+                
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
             except Exception as e:
                 pdf.set_font("Arial", 'I', 9)
-                pdf.cell(0, 7, txt=f"[ Interactive {ins.get('chart_type')} chart available in the dashboard ]", ln=True)
+                pdf.set_text_color(200, 0, 0)
+                pdf.cell(0, 7, txt=f"[ Chart image rendering failed. Interactive chart available in dashboard ]", ln=True)
+                pdf.set_text_color(*TEXT_BLACK)
+        else:
+            pdf.set_font("Arial", 'I', 9)
+            pdf.set_text_color(200, 0, 0)
+            pdf.cell(0, 7, txt=f"[ Chart could not be generated for this data slice ]", ln=True)
+            pdf.set_text_color(*TEXT_BLACK)
+
+        pdf.ln(3)
+
+        # 3. Brief Explanation
+        pdf.set_font("Arial", 'B', 11)
+        pdf.set_text_color(*PRIMARY_BLUE)
+        pdf.cell(0, 8, txt="Explanation:", ln=True)
+        
+        pdf.set_font("Arial", '', 10)
+        pdf.set_text_color(*TEXT_BLACK)
+        clean_desc = ins.get('description', '').encode('latin-1', 'ignore').decode('latin-1')
+        clean_desc = clean_desc.replace('**', '')
+        pdf.multi_cell(0, 6, txt=clean_desc)
+        pdf.ln(3)
+
+        # 4. Key Statistics Related to the Graph
+        xc = ins.get("x_col"); yc = ins.get("y_col"); zc = ins.get("z_col")
+        stats_lines = []
+        for col_name in [xc, yc, zc]:
+            if col_name and col_name in df.columns and col_name in profile["numeric_cols"]:
+                cs = profile["col_stats"][col_name]
+                stats_lines.append(f"- {col_name}: Mean = {cs['mean']} | Std = {cs['std']} | Range = {cs['min']} to {cs['max']}")
+                
+        if stats_lines:
+            pdf.set_font("Arial", 'B', 11)
+            pdf.set_text_color(*PRIMARY_BLUE)
+            pdf.cell(0, 8, txt="Key Statistics:", ln=True)
+            
+            pdf.set_font("Courier", '', 10)
+            pdf.set_text_color(*TEXT_BLACK)
+            for line in stats_lines:
+                pdf.cell(0, 6, txt=line.encode('latin-1', 'ignore').decode('latin-1'), ln=True)
+        
         pdf.ln(10)
 
     pdf_out = pdf.output(dest='S')
     return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
 
 
-# ─────────────────────────────────────────────────────────────
 # FILE PROCESSING HELPER
-# ─────────────────────────────────────────────────────────────
+
 def handle_file_upload(uploaded_file):
     if uploaded_file:
         fname = uploaded_file.name
@@ -884,10 +934,7 @@ def handle_file_upload(uploaded_file):
             except Exception as e:
                 st.error(f"Error: {e}")
 
-
-# ─────────────────────────────────────────────────────────────
 # SIDEBAR
-# ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ⚡ DataWhisper")
     st.caption("AI-powered data analysis")
@@ -942,9 +989,7 @@ with st.sidebar:
                 st.info("💡 Tip: Install `fpdf` and `kaleido` via pip to enable PDF downloads.")
 
 
-# ─────────────────────────────────────────────────────────────
-# MAIN APP ROUTING
-# ─────────────────────────────────────────────────────────────
+# MAIN APP 
 
 # VIEW 1: HOME PAGE
 if st.session_state.df is None or st.session_state.view == "home":
