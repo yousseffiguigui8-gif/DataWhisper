@@ -1,0 +1,10 @@
+streamlit
+pandas
+plotly
+groq
+python-dotenv
+numpy
+scipy
+kaggle
+fpdf
+kaleido
