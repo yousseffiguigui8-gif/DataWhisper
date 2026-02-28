@@ -83,7 +83,7 @@ def toggle_theme():
 
 
 # ─────────────────────────────────────────────────────────────
-# DYNAMIC THEME VARIABLES 
+# DYNAMIC THEME VARIABLES  ← FIXED for dark mode readability
 # ─────────────────────────────────────────────────────────────
 is_dark = st.session_state.theme == "dark"
 
@@ -97,14 +97,13 @@ button_bg     = "#2a3f6f"  if is_dark else "#ffffff"
 button_text   = "#e8eeff"  if is_dark else "#1e293b"   
 button_hover  = "#3a5290"  if is_dark else "#f8fafc"   
 heading_color = "#ffffff"  if is_dark else "#0f172a"
-input_bg      = "#0e1117"  if is_dark else "#ffffff" # Deep dark for inputs
+input_bg      = "#111827"  if is_dark else "#ffffff"
 shadow_css    = "rgba(0,0,0,0.45)" if is_dark else "rgba(0,0,0,0.06)"
 plotly_template = "plotly_dark" if is_dark else "plotly_white"
 
 
-# ─────────────────────────────────────────────────────────────
-# THEME CSS & ANIMATIONS
-# ─────────────────────────────────────────────────────────────
+
+#  CSS & ANIMATIONS 
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -128,10 +127,9 @@ st.markdown(f"""
     100% {{ background-position: 0% 50%; }}
 }}
 
-/* ── App Background Forces ── */
-html, body, [class*="css"], .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
+html, body, [class*="css"], .stApp {{
     font-family: 'Inter', sans-serif;
-    background-color: {bg_color} !important;
+    background-color: {bg_color};
     color: {text_color} !important;
     transition: background-color 0.4s ease, color 0.4s ease;
 }}
@@ -147,7 +145,7 @@ p, span, li, div, td, th, small, strong, em,
 [data-testid="stCaptionContainer"] p {{ color: {subtext_color} !important; }}
 
 [data-testid="stSidebar"] {{
-    background: {sidebar_bg} !important;
+    background: {sidebar_bg};
     border-right: 1px solid {border_color};
     transition: background 0.4s ease;
 }}
@@ -156,30 +154,35 @@ p, span, li, div, td, th, small, strong, em,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {{ color: {heading_color} !important; }}
 
-/* ── Buttons (Insight cases & general buttons) ── */
-div[data-testid="stButton"] > button {{
-    background-color: {button_bg} !important;
+/* ── Buttons: dark bg + bright dedicated label colour ── */
+.stButton > button {{
+    background: {button_bg} !important;
     border: 1px solid {border_color} !important;
+    color: {button_text} !important;
     border-radius: 8px !important;
     font-size: 13px !important;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
     box-shadow: 0 2px 4px {shadow_css};
 }}
-div[data-testid="stButton"] > button p,
-div[data-testid="stButton"] > button span,
-div[data-testid="stButton"] > button div {{
+/* Catch inner <p>/<span> Streamlit wraps inside button */
+.stButton > button p,
+.stButton > button span {{
     color: {button_text} !important;
 }}
-div[data-testid="stButton"] > button:hover {{
+.stButton > button:hover {{
     border-color: #4f6ef7 !important;
-    background-color: {button_hover} !important;
+    color: #ffffff !important;
+    background: {button_hover} !important;
     transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(79, 110, 247, 0.25);
 }}
-div[data-testid="stButton"] > button:hover p,
-div[data-testid="stButton"] > button:hover span,
-div[data-testid="stButton"] > button:hover div {{
+.stButton > button:hover p,
+.stButton > button:hover span {{
     color: #ffffff !important;
+}}
+[data-testid="stSidebar"] .stButton > button {{
+    text-align: left !important;
+    padding: 8px 12px !important;
 }}
 
 .main .block-container {{
@@ -211,10 +214,10 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
 
 /* ── Metric Cards ── */
 [data-testid="stMetric"] {{
-    background: {card_bg} !important;
+    background: {card_bg};
     border-radius: 10px;
     padding: 16px !important;
-    border: 1px solid {border_color} !important;
+    border: 1px solid {border_color};
     box-shadow: 0 4px 8px {shadow_css};
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }}
@@ -240,7 +243,7 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
 
 /* ── Analysis Panel ── */
 .analysis-panel {{
-    background: {card_bg} !important;
+    background: {card_bg};
     border-left: 5px solid #4f6ef7;
     padding: 25px;
     border-radius: 0 12px 12px 0;
@@ -248,6 +251,11 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
     box-shadow: 0 4px 10px {shadow_css};
     transition: background 0.4s ease;
 }}
+
+/* ── Chat Styling ── */
+[data-testid="stChatMessage"] {{ background-color: transparent; border-radius: 10px; }}
+[data-testid="stChatInput"] {{ background-color: {card_bg} !important; border-color: {border_color} !important; }}
+[data-testid="stChatInput"] * {{ color: {text_color} !important; }}
 
 /* ── Top Navigation Bar ── */
 .top-nav-container {{
@@ -262,9 +270,7 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
     transition: all 0.4s ease;
 }}
 
-/* ── STREAMLIT NATIVE UI AGGRESSIVE FIXES FOR DARK MODE ── */
-
-/* File Uploader Dropzone FIX */
+/* ── File Uploader ── */
 [data-testid="stFileUploadDropzone"] {{
     background-color: {input_bg} !important;
     border: 2px dashed {border_color} !important;
@@ -274,17 +280,23 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
 [data-testid="stFileUploadDropzone"] small {{
     color: {text_color} !important;
 }}
-
-/* Chat Input FIX */
-[data-testid="stChatInput"] {{
-    background-color: {input_bg} !important;
+[data-testid="stFileUploadDropzone"] button {{
+    background-color: {button_bg} !important;
     border: 1px solid {border_color} !important;
+    border-radius: 8px !important;
 }}
-[data-testid="stChatInput"] * {{
-    color: {text_color} !important;
+[data-testid="stFileUploadDropzone"] button span {{
+    color: {button_text} !important;
+}}
+[data-testid="stFileUploadDropzone"] button:hover {{
+    background-color: {button_hover} !important;
+    border-color: #4f6ef7 !important;
+}}
+[data-testid="stFileUploadDropzone"] button:hover span {{
+    color: #ffffff !important;
 }}
 
-/* Text Inputs / Text Areas FIX */
+/* ── Text Inputs ── */
 .stTextInput input, .stTextArea textarea,
 [data-baseweb="input"], [data-baseweb="input"] input,
 [data-testid="stChatInputTextArea"] {{
@@ -294,13 +306,16 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
     -webkit-text-fill-color: {text_color} !important;
 }}
 
-/* Tabs FIX */
+/* ── Tabs ── */
 [data-testid="stTabs"] button[role="tab"] {{ background-color: transparent !important; }}
 [data-testid="stTabs"] button[role="tab"] p {{ color: {subtext_color} !important; font-size: 1.05rem; }}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] p {{ color: {heading_color} !important; font-weight: 700; }}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{ border-bottom-color: #4f6ef7 !important; }}
 
-/* Sidebar collapse button (<<) FIX */
+/* ── Labels ── */
+label p {{ color: {text_color} !important; }}
+
+/* ── Sidebar collapse button ── */
 [data-testid="collapsedControl"] {{
     background-color: {card_bg} !important;
     border: 1px solid {border_color} !important;
@@ -312,6 +327,14 @@ h2, h3 {{ font-weight: 600 !important; color: {heading_color} !important; }}
 [data-testid="collapsedControl"] svg {{
     fill: {text_color} !important;
     color: {text_color} !important;
+}}
+[data-testid="collapsedControl"]:hover {{
+    background-color: {button_hover} !important;
+    border-color: #4f6ef7 !important;
+}}
+[data-testid="collapsedControl"]:hover svg {{
+    fill: #4f6ef7 !important;
+    color: #4f6ef7 !important;
 }}
 
 ::-webkit-scrollbar {{ width: 6px; }}
@@ -501,7 +524,7 @@ Return ONLY a JSON array of exactly 5 objects (no markdown):
   "title": "Specific insightful title",
   "description": "2-3 sentences: what the pattern is, why it matters",
   "phenomenon_type": "distribution"|"correlation"|"trend"|"comparison"|"outlier"|"composition"|"ranking",
-  "chart_type": "scatter"|"bar"|"line"|"histogram"|"box"|"violin"|"heatmap"|"area"|"bubble"|"pie"|"scatter_3d",
+  "chart_type": "scatter"|"bar"|"line"|"histogram"|"box"|"violin"|"heatmap"|"area"|"bubble"|"pie",
   "x_col": "exact column name or null",
   "y_col": "exact column name or null",
   "z_col": "exact column name or null",
@@ -527,7 +550,7 @@ Column names MUST exactly match. Return pure JSON only."""
 
 
 # ─────────────────────────────────────────────────────────────
-# CHART BUILDER (NOW WITH FORCED COLORS)
+# CHART BUILDER
 # ─────────────────────────────────────────────────────────────
 def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
     ct  = ins.get("chart_type","bar")
@@ -581,11 +604,6 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
 
     if ct in ["line", "area"] and xc:
         pf = pf.sort_values(xc)
-        
-    # --- AUTO-COLORIZATION ---
-    if ct in ["bar", "box", "violin"] and not cc and xc in pf.columns:
-        if pf[xc].nunique() <= 20:
-            cc = xc
 
     hov    = [c for c in pf.columns.tolist()[:8] if c not in [xc, yc, zc]]
     title  = ins.get("title","")
@@ -596,7 +614,6 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
         if not xc and not yc:
             return None
 
-        # Add color_discrete_sequence=PALETTE to ensure charts are always colorful
         if ct == "scatter":
             if not xc or not yc: return None
             needs_tl = (xc and yc
@@ -604,7 +621,7 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
                         and pd.api.types.is_numeric_dtype(pf.get(yc, pd.Series()))
                         and not cc)
             fig = px.scatter(pf, x=xc, y=yc, color=cc, size=sc, hover_data=hov,
-                             opacity=0.75, title=title, color_discrete_sequence=PALETTE)
+                             opacity=0.75, title=title)
             if needs_tl:
                 try:
                     mask = pf[[xc, yc]].notna().all(axis=1)
@@ -625,42 +642,42 @@ def build_chart(ins: dict, df: pd.DataFrame) -> go.Figure | None:
         elif ct == "scatter_3d":
             if not xc or not yc or not zc: return None
             fig = px.scatter_3d(pf, x=xc, y=yc, z=zc, color=cc, size=sc, hover_data=hov,
-                                opacity=0.75, title=title, color_discrete_sequence=PALETTE)
+                                opacity=0.75, title=title)
 
         elif ct == "bubble":
             if not xc or not yc: return None
             fig = px.scatter(pf, x=xc, y=yc, color=cc, size=sc, hover_data=hov,
-                             opacity=0.72, title=title, color_discrete_sequence=PALETTE)
+                             opacity=0.72, title=title)
 
         elif ct == "bar":
             fig = px.bar(pf, x=xc, y=yc, color=cc,
                          barmode="group" if cc else "relative",
-                         text_auto=".3s", title=title, color_discrete_sequence=PALETTE)
+                         text_auto=".3s", title=title)
             fig.update_traces(textposition="outside", textfont_size=10, marker_line_width=0)
 
         elif ct == "line":
-            fig = px.line(pf, x=xc, y=yc, color=cc, markers=True, title=title, color_discrete_sequence=PALETTE)
+            fig = px.line(pf, x=xc, y=yc, color=cc, markers=True, title=title)
             fig.update_traces(line_width=2.5)
 
         elif ct == "area":
-            fig = px.area(pf, x=xc, y=yc, color=cc, title=title, color_discrete_sequence=PALETTE)
+            fig = px.area(pf, x=xc, y=yc, color=cc, title=title)
 
         elif ct == "pie":
             if not xc: return None
-            fig = px.pie(pf, names=xc, values=yc, title=title, hole=0.3, color_discrete_sequence=PALETTE)
+            fig = px.pie(pf, names=xc, values=yc, title=title, hole=0.3)
             fig.update_traces(textposition='inside', textinfo='percent+label')
 
         elif ct == "histogram":
             if not xc: return None
             fig = px.histogram(pf, x=xc, color=cc,
                                nbins=min(50, max(10, int(pf.shape[0]**0.5))),
-                               opacity=0.82, barmode="overlay", title=title, color_discrete_sequence=PALETTE)
+                               opacity=0.82, barmode="overlay", title=title)
 
         elif ct == "box":
-            fig = px.box(pf, x=xc, y=yc, color=cc, points="outliers", notched=True, title=title, color_discrete_sequence=PALETTE)
+            fig = px.box(pf, x=xc, y=yc, color=cc, points="outliers", notched=True, title=title)
 
         elif ct == "violin":
-            fig = px.violin(pf, x=xc, y=yc, color=cc, box=True, points="outliers", title=title, color_discrete_sequence=PALETTE)
+            fig = px.violin(pf, x=xc, y=yc, color=cc, box=True, points="outliers", title=title)
 
         elif ct == "heatmap":
             num_cols = profile["numeric_cols"]
@@ -702,7 +719,7 @@ def render_overview_charts(df: pd.DataFrame, profile: dict):
         fig = go.Figure(go.Heatmap(
             z=corr.values, x=corr.columns.tolist(), y=corr.index.tolist(),
             colorscale=[[0,"#e74c3c"],[0.5,card_bg],[1,"#4f6ef7"]], zmid=0,
-            text=corr.values.round(2), texttemplate="%{text}", 
+            text=corr.values.round(2), texttemplate="%{text}",
             textfont=dict(size=11, color=text_color),
             hovertemplate="<b>%{x}</b> × <b>%{y}</b><br>r = %{z}<extra></extra>",
             colorbar=dict(title="r", thickness=10, len=0.9)))
@@ -821,7 +838,7 @@ def create_pdf_report(df_name, profile, summary_text, insights, df):
                 paper_bgcolor="#f0f4fa",
                 plot_bgcolor="#f0f4fa",
                 font=dict(color="#1a2b4c"),
-                colorway=PALETTE, # Forces the graphs in PDF to use your custom colors!
+                colorway=PALETTE,
                 margin=dict(l=20, r=20, t=40, b=20)
             )
             fig.update_xaxes(gridcolor="rgba(26, 43, 76, 0.1)", title_font=dict(color="#1a2b4c"), tickfont=dict(color="#1a2b4c"))
